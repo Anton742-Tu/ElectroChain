@@ -38,11 +38,11 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     # Наши приложения
-    "network.apps.NetworkConfig",  # или просто 'network'
+    "network.apps.NetworkConfig",
     # Сторонние приложения
     "rest_framework",
     "django_filters",
-    "drf_yasg",  # или drf-spectacular для документации API
+    "drf_yasg",
 ]
 
 MIDDLEWARE = [
@@ -71,6 +71,12 @@ TEMPLATES = [
         },
     },
 ]
+
+REST_FRAMEWORK = {
+    "DEFAULT_FILTER_BACKENDS": ["django_filters.rest_framework.DjangoFilterBackend"],
+    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
+    "PAGE_SIZE": 10,
+}
 
 WSGI_APPLICATION = "electrochain.wsgi.application"
 
