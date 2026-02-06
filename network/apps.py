@@ -7,4 +7,4 @@ class NetworkConfig(AppConfig):
     verbose_name = "Сеть продаж электроники"
 
     def ready(self):
-        import network.signals
+        pass
