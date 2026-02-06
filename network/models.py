@@ -1,3 +1,4 @@
+from django.contrib.auth.models import User
 from django.core.validators import MinValueValidator, RegexValidator
 from django.db import models
 from django.utils import timezone
@@ -190,3 +191,47 @@ class NetworkNode(models.Model):
         """Переопределяем save для дополнительной валидации"""
         self.full_clean()  # Вызываем clean метод
         super().save(*args, **kwargs)
+
+
+class Employee(models.Model):
+    """Модель сотрудника с привязкой к пользователю Django"""
+
+    user = models.OneToOneField(
+        User, on_delete=models.CASCADE, related_name="employee_profile", verbose_name="Пользователь"
+    )
+    department = models.CharField(
+        max_length=100, verbose_name="Отдел", blank=True, help_text="Отдел, в котором работает сотрудник"
+    )
+    position = models.CharField(max_length=100, verbose_name="Должность", blank=True, help_text="Должность сотрудника")
+    phone = models.CharField(max_length=20, verbose_name="Рабочий телефон", blank=True)
+    is_active = models.BooleanField(
+        default=True, verbose_name="Активный сотрудник", help_text="Определяет, имеет ли сотрудник доступ к системе"
+    )
+    hire_date = models.DateField(verbose_name="Дата приема на работу", auto_now_add=True)
+    last_login_date = models.DateTimeField(verbose_name="Дата последнего входа", null=True, blank=True)
+
+    class Meta:
+        verbose_name = "Сотрудник"
+        verbose_name_plural = "Сотрудники"
+        ordering = ["user__last_name", "user__first_name"]
+
+    def __str__(self):
+        return f"{self.user.get_full_name()} ({self.position})"
+
+    @property
+    def full_name(self):
+        return self.user.get_full_name()
+
+    @property
+    def email(self):
+        return self.user.email
+
+    @property
+    def is_staff_member(self):
+        """Проверяет, является ли сотрудник членом персонала"""
+        return self.user.is_staff
+
+    def update_last_login(self):
+        """Обновляет дату последнего входа"""
+        self.last_login_date = timezone.now()
+        self.save(update_fields=["last_login_date"])
