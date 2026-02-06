@@ -1,3 +1,4 @@
+from django.db.models import Avg, Count, Q, Sum
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters, status, viewsets
 from rest_framework.decorators import action
@@ -66,17 +67,15 @@ class NetworkNodeViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=["get"])
     def suppliers_summary(self, request):
         """Статистика по поставщикам"""
-        from django.db.models import Avg, Count, Sum
-
         stats = NetworkNode.objects.aggregate(
             total=Count("id"),
-            factories=Count("id", filter=models.Q(node_type="factory")),
-            retail_networks=Count("id", filter=models.Q(node_type="retail_network")),
-            entrepreneurs=Count("id", filter=models.Q(node_type="individual_entrepreneur")),
+            factories=Count("id", filter=Q(node_type="factory")),
+            retail_networks=Count("id", filter=Q(node_type="retail_network")),
+            entrepreneurs=Count("id", filter=Q(node_type="individual_entrepreneur")),
             total_debt=Sum("debt"),
             avg_debt=Avg("debt"),
-            with_supplier=Count("id", filter=models.Q(supplier__isnull=False)),
-            without_supplier=Count("id", filter=models.Q(supplier__isnull=True)),
+            with_supplier=Count("id", filter=Q(supplier__isnull=False)),
+            without_supplier=Count("id", filter=Q(supplier__isnull=True)),
         )
 
         # Статистика по странам
