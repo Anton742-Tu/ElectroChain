@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     "network.apps.NetworkConfig",
     # Сторонние приложения
     "rest_framework",
+    "rest_framework.authtoken",
     "django_filters",
     "drf_yasg",
 ]
@@ -74,12 +75,12 @@ TEMPLATES = [
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
-        "network.authentication.ActiveEmployeeAuthentication",  # Наша кастомная аутентификация
         "rest_framework.authentication.SessionAuthentication",
         "rest_framework.authentication.BasicAuthentication",
+        "rest_framework.authentication.TokenAuthentication",
     ],
     "DEFAULT_PERMISSION_CLASSES": [
-        "network.permissions.IsActiveEmployee",  # Глобальное правило доступа
+        "rest_framework.permissions.IsAuthenticated",  # Требует аутентификацию
     ],
     "DEFAULT_FILTER_BACKENDS": ["django_filters.rest_framework.DjangoFilterBackend"],
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
