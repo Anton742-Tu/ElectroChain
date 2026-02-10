@@ -44,3 +44,6 @@ htmlcov/
 
 # Black
 .black.cache
+
+img.png
+img_1.png

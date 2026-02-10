@@ -1,22 +1,28 @@
+from django.contrib.auth import authenticate, login, logout
 from django.db.models import Avg, Count, Q, Sum
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import filters, status, viewsets
+from rest_framework import filters, generics, permissions, status, viewsets
 from rest_framework.decorators import action
-from rest_framework.permissions import IsAuthenticatedOrReadOnly
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
+from .authentication import ActiveEmployeeAuthentication
 from .filters import NetworkNodeFilter
-from .models import NetworkNode, Product
-from .serializers import (NetworkNodeCreateSerializer, NetworkNodeSerializer,
-                          NetworkNodeUpdateSerializer, ProductSerializer)
+from .models import Employee, NetworkNode, Product
+from .permissions import (DepartmentPermission, IsActiveEmployee,
+                          IsAdminOrReadOnlyForEmployees)
+from .serializers import (EmployeeSerializer, NetworkNodeCreateSerializer,
+                          NetworkNodeSerializer, NetworkNodeUpdateSerializer,
+                          ProductSerializer, UserRegistrationSerializer)
 
 
 class ProductViewSet(viewsets.ModelViewSet):
-    """ViewSet для модели Product"""
+    """ViewSet для модели Product с проверкой прав доступа"""
 
     queryset = Product.objects.all()
     serializer_class = ProductSerializer
-    permission_classes = [IsAuthenticatedOrReadOnly]
+    authentication_classes = [ActiveEmployeeAuthentication]
+    permission_classes = [IsActiveEmployee, IsAdminOrReadOnlyForEmployees]
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ["name", "model"]
     ordering_fields = ["name", "release_date"]
@@ -24,21 +30,18 @@ class ProductViewSet(viewsets.ModelViewSet):
 
 class NetworkNodeViewSet(viewsets.ModelViewSet):
     """
-    ViewSet для модели NetworkNode (поставщиков).
-    Реализует CRUD операции с запретом обновления поля 'debt'.
+    ViewSet для модели NetworkNode с проверкой прав доступа.
     """
 
     queryset = NetworkNode.objects.all()
-    permission_classes = [IsAuthenticatedOrReadOnly]
+    authentication_classes = [ActiveEmployeeAuthentication]
+    permission_classes = [IsActiveEmployee, DepartmentPermission]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_class = NetworkNodeFilter
     search_fields = ["name", "email", "city", "country"]
     ordering_fields = ["name", "created_at", "debt", "level"]
 
     def get_serializer_class(self):
-        """
-        Выбираем сериализатор в зависимости от действия.
-        """
         if self.action == "create":
             return NetworkNodeCreateSerializer
         elif self.action in ["update", "partial_update"]:
@@ -46,12 +49,10 @@ class NetworkNodeViewSet(viewsets.ModelViewSet):
         return NetworkNodeSerializer
 
     def perform_create(self, serializer):
-        """Создание нового объекта с автоматическим заполнением debt=0"""
-        serializer.save(debt=0)  # При создании всегда debt=0
+        serializer.save(debt=0)
 
     @action(detail=False, methods=["get"])
     def by_country(self, request):
-        """Получить звенья по стране (альтернативный способ фильтрации)"""
         country = request.query_params.get("country", None)
         if country:
             queryset = self.get_queryset().filter(country__iexact=country)
@@ -66,7 +67,6 @@ class NetworkNodeViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=["get"])
     def suppliers_summary(self, request):
-        """Статистика по поставщикам"""
         stats = NetworkNode.objects.aggregate(
             total=Count("id"),
             factories=Count("id", filter=Q(node_type="factory")),
@@ -78,7 +78,6 @@ class NetworkNodeViewSet(viewsets.ModelViewSet):
             without_supplier=Count("id", filter=Q(supplier__isnull=True)),
         )
 
-        # Статистика по странам
         countries = (
             NetworkNode.objects.values("country")
             .annotate(count=Count("id"), total_debt=Sum("debt"))
@@ -101,7 +100,16 @@ class NetworkNodeViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=["post"])
     def clear_debt(self, request, pk=None):
-        """Очистить задолженность для конкретного объекта"""
+        """Только активные сотрудники могут очищать задолженность"""
+        # Проверяем права доступа вручную
+        if not request.user or not request.user.is_authenticated:
+            return Response({"error": "Требуется аутентификация"}, status=status.HTTP_401_UNAUTHORIZED)
+
+        # Проверяем, является ли пользователь активным сотрудником
+        permission = IsActiveEmployee()
+        if not permission.has_permission(request, self):
+            return Response({"error": permission.message}, status=status.HTTP_403_FORBIDDEN)
+
         node = self.get_object()
         old_debt = node.debt
         node.debt = 0
@@ -113,7 +121,16 @@ class NetworkNodeViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=["post"])
     def bulk_clear_debt(self, request):
-        """Массовая очистка задолженности"""
+        """Массовая очистка задолженности только для активных сотрудников"""
+        # Проверяем права доступа вручную
+        if not request.user or not request.user.is_authenticated:
+            return Response({"error": "Требуется аутентификация"}, status=status.HTTP_401_UNAUTHORIZED)
+
+        # Проверяем, является ли пользователь активным сотрудником
+        permission = IsActiveEmployee()
+        if not permission.has_permission(request, self):
+            return Response({"error": permission.message}, status=status.HTTP_403_FORBIDDEN)
+
         ids = request.data.get("ids", [])
         if not ids:
             return Response({"error": "Необходимо указать ids объектов"}, status=status.HTTP_400_BAD_REQUEST)
@@ -127,3 +144,145 @@ class NetworkNodeViewSet(viewsets.ModelViewSet):
         return Response(
             {"message": "Задолженность очищена", "cleared_count": count, "total_debt_cleared": float(total_debt)}
         )
+
+
+class EmployeeViewSet(viewsets.ModelViewSet):
+    """ViewSet для управления сотрудниками (только для администраторов)"""
+
+    queryset = Employee.objects.all()
+    serializer_class = EmployeeSerializer
+    authentication_classes = [ActiveEmployeeAuthentication]
+    permission_classes = [permissions.IsAdminUser]  # Только администраторы
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ["user__username", "user__email", "user__first_name", "user__last_name", "department", "position"]
+    ordering_fields = ["user__last_name", "hire_date", "department"]
+
+    @action(detail=True, methods=["post"])
+    def activate(self, request, pk=None):
+        """Активировать сотрудника"""
+        # Проверяем, является ли пользователь администратором
+        if not request.user.is_superuser:
+            return Response({"error": "Требуются права администратора"}, status=status.HTTP_403_FORBIDDEN)
+
+        employee = self.get_object()
+        employee.is_active = True
+        employee.save()
+        return Response({"status": "Сотрудник активирован"})
+
+    @action(detail=True, methods=["post"])
+    def deactivate(self, request, pk=None):
+        """Деактивировать сотрудника"""
+        # Проверяем, является ли пользователь администратором
+        if not request.user.is_superuser:
+            return Response({"error": "Требуются права администратора"}, status=status.HTTP_403_FORBIDDEN)
+
+        employee = self.get_object()
+        employee.is_active = False
+        employee.save()
+        return Response({"status": "Сотрудник деактивирован"})
+
+
+class CurrentEmployeeView(APIView):
+    """Получение информации о текущем сотруднике"""
+
+    authentication_classes = [ActiveEmployeeAuthentication]
+
+    def get(self, request):
+        # Проверяем права доступа
+        permission = IsActiveEmployee()
+        if not permission.has_permission(request, self):
+            return Response({"error": permission.message}, status=status.HTTP_403_FORBIDDEN)
+
+        try:
+            employee = request.user.employee_profile
+            serializer = EmployeeSerializer(employee)
+            return Response(serializer.data)
+        except Employee.DoesNotExist:
+            return Response({"error": "Профиль сотрудника не найден"}, status=status.HTTP_404_NOT_FOUND)
+
+
+class RegisterEmployeeView(generics.CreateAPIView):
+    """Регистрация нового сотрудника (только для администраторов)"""
+
+    serializer_class = UserRegistrationSerializer
+    authentication_classes = [ActiveEmployeeAuthentication]
+
+    def check_permissions(self, request):
+        # Проверяем, является ли пользователь администратором
+        if not request.user.is_superuser:
+            self.permission_denied(request, message="Требуются права администратора")
+        return super().check_permissions(request)
+
+
+class LoginView(APIView):
+    """Вход в систему для сотрудников"""
+
+    def post(self, request):
+        username = request.data.get("username")
+        password = request.data.get("password")
+
+        user = authenticate(request, username=username, password=password)
+
+        if user is not None:
+            # Проверяем, есть ли у пользователя профиль сотрудника
+            try:
+                employee = user.employee_profile
+                if not employee.is_active:
+                    return Response(
+                        {"error": "Ваш аккаунт сотрудника деактивирован"}, status=status.HTTP_403_FORBIDDEN
+                    )
+
+                # Выполняем вход
+                login(request, user)
+
+                # Обновляем дату последнего входа
+                employee.update_last_login()
+
+                return Response(
+                    {
+                        "message": "Вход выполнен успешно",
+                        "user": {
+                            "id": user.id,
+                            "username": user.username,
+                            "email": user.email,
+                            "full_name": user.get_full_name(),
+                            "department": employee.department,
+                            "position": employee.position,
+                        },
+                    }
+                )
+
+            except Employee.DoesNotExist:
+                # Проверяем, является ли пользователь суперпользователем
+                if user.is_superuser:
+                    login(request, user)
+                    return Response(
+                        {
+                            "message": "Вход выполнен как суперпользователь",
+                            "user": {
+                                "id": user.id,
+                                "username": user.username,
+                                "email": user.email,
+                                "full_name": user.get_full_name(),
+                            },
+                        }
+                    )
+
+                return Response({"error": "Профиль сотрудника не найден"}, status=status.HTTP_403_FORBIDDEN)
+
+        return Response({"error": "Неверные учетные данные"}, status=status.HTTP_401_UNAUTHORIZED)
+
+
+class LogoutView(APIView):
+    """Выход из системы"""
+
+    authentication_classes = [ActiveEmployeeAuthentication]
+
+    def post(self, request):
+        # Проверяем права доступа
+        permission = IsActiveEmployee()
+        if not permission.has_permission(request, self):
+            return Response({"error": permission.message}, status=status.HTTP_403_FORBIDDEN)
+
+        logout(request)
+        return Response({"message": "Выход выполнен успешно"})

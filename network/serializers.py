@@ -1,6 +1,7 @@
+from django.contrib.auth.models import User
 from rest_framework import serializers
 
-from .models import NetworkNode, Product
+from .models import Employee, NetworkNode, Product
 
 
 class ProductSerializer(serializers.ModelSerializer):
@@ -68,3 +69,80 @@ class NetworkNodeUpdateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({"supplier": "Завод не может иметь поставщика!"})
 
         return data
+
+
+class EmployeeSerializer(serializers.ModelSerializer):
+    """Сериализатор для модели Employee"""
+
+    full_name = serializers.CharField(source="user.get_full_name", read_only=True)
+    email = serializers.CharField(source="user.email", read_only=True)
+    username = serializers.CharField(source="user.username", read_only=True)
+
+    class Meta:
+        model = Employee
+        fields = [
+            "id",
+            "user",
+            "full_name",
+            "email",
+            "username",
+            "department",
+            "position",
+            "phone",
+            "is_active",
+            "hire_date",
+            "last_login_date",
+            "is_staff_member",
+        ]
+        read_only_fields = ["id", "user", "hire_date", "last_login_date"]
+
+
+class UserRegistrationSerializer(serializers.ModelSerializer):
+    """Сериализатор для регистрации новых пользователей-сотрудников"""
+
+    password = serializers.CharField(write_only=True, style={"input_type": "password"})
+    password_confirm = serializers.CharField(write_only=True, style={"input_type": "password"})
+    department = serializers.CharField(write_only=True)
+    position = serializers.CharField(write_only=True)
+
+    class Meta:
+        model = User
+        fields = [
+            "username",
+            "email",
+            "first_name",
+            "last_name",
+            "password",
+            "password_confirm",
+            "department",
+            "position",
+        ]
+
+    def validate(self, data):
+        # Проверяем совпадение паролей
+        if data["password"] != data["password_confirm"]:
+            raise serializers.ValidationError({"password_confirm": "Пароли не совпадают."})
+
+        # Проверяем уникальность email
+        if User.objects.filter(email=data["email"]).exists():
+            raise serializers.ValidationError({"email": "Пользователь с таким email уже существует."})
+
+        return data
+
+    def create(self, validated_data):
+        # Создаем пользователя
+        user = User.objects.create_user(
+            username=validated_data["username"],
+            email=validated_data["email"],
+            password=validated_data["password"],
+            first_name=validated_data.get("first_name", ""),
+            last_name=validated_data.get("last_name", ""),
+            is_staff=True,  # Все зарегистрированные сотрудники - персонал
+        )
+
+        # Создаем профиль сотрудника
+        Employee.objects.create(
+            user=user, department=validated_data["department"], position=validated_data["position"], is_active=True
+        )
+
+        return user
