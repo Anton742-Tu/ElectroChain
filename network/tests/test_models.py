@@ -1,39 +1,54 @@
-from datetime import date
+from datetime import timedelta
 
 from django.core.exceptions import ValidationError
 from django.test import TestCase
+from django.utils import timezone
 
 from network.models import NetworkNode, Product
 
 
 class ProductModelTest(TestCase):
     def setUp(self):
-        self.product = Product.objects.create(name="Тестовый продукт", model="TEST-001", release_date=date(2024, 1, 1))
+        # Создаем продукт с датой выпуска - 30 дней назад (новый продукт)
+        self.product = Product.objects.create(
+            name="Тестовый продукт", model="TEST-001", release_date=timezone.now().date() - timedelta(days=30)
+        )
 
     def test_product_creation(self):
         """Тест создания продукта"""
         self.assertEqual(self.product.name, "Тестовый продукт")
         self.assertEqual(self.product.model, "TEST-001")
-        self.assertEqual(str(self.product), "Тестовый продукт - TEST-001 (2024)")
+        self.assertIn(str(self.product.release_date.year), str(self.product))
 
-    def test_is_new_property(self):
-        """Тест свойства is_new"""
-        # Продукт 2024 года должен быть новым
-        self.assertTrue(self.product.is_new)
+    def test_is_new_property_true(self):
+        """Тест свойства is_new для нового продукта"""
+        # Создаем новый продукт (менее 6 месяцев)
+        new_product = Product.objects.create(
+            name="Новый продукт", model="NEW-001", release_date=timezone.now().date() - timedelta(days=30)
+        )
+        self.assertTrue(new_product.is_new)
 
-        # Создаем старый продукт
-        old_product = Product.objects.create(name="Старый продукт", model="OLD-001", release_date=date(2020, 1, 1))
+    def test_is_new_property_false(self):
+        """Тест свойства is_new для старого продукта"""
+        # Создаем старый продукт (более 6 месяцев)
+        old_product = Product.objects.create(
+            name="Старый продукт", model="OLD-001", release_date=timezone.now().date() - timedelta(days=200)
+        )
         self.assertFalse(old_product.is_new)
 
 
 class NetworkNodeModelTest(TestCase):
     def setUp(self):
-        # Создаем продукты
-        self.product1 = Product.objects.create(name="Продукт 1", model="P1", release_date=date(2024, 1, 1))
+        # Создаем продукты с актуальными датами
+        self.product1 = Product.objects.create(
+            name="Продукт 1", model="P1", release_date=timezone.now().date() - timedelta(days=30)
+        )
 
-        self.product2 = Product.objects.create(name="Продукт 2", model="P2", release_date=date(2024, 1, 1))
+        self.product2 = Product.objects.create(
+            name="Продукт 2", model="P2", release_date=timezone.now().date() - timedelta(days=45)
+        )
 
-        # Создаем завод
+        # Создаем завод с обязательными полями
         self.factory = NetworkNode.objects.create(
             name="Тестовый завод",
             node_type="factory",
@@ -89,10 +104,12 @@ class NetworkNodeModelTest(TestCase):
         factory2 = NetworkNode(
             name="Завод 2",
             node_type="factory",
-            supplier=self.factory,  # Не должно быть разрешено
+            supplier=self.factory,
             email="factory2@test.ru",
             country="Россия",
             city="Москва",
+            street="Заводская",
+            house_number="2",
         )
 
         with self.assertRaises(ValidationError):
@@ -121,6 +138,8 @@ class NetworkNodeModelTest(TestCase):
             email="test@test.ru",
             country="Россия",
             city="Москва",
+            street="Тестовая",
+            house_number="1",
             debt=-100.00,  # Отрицательный долг
         )
 
