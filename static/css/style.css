@@ -1,0 +1,108 @@
+:root {
+    --primary-color: #0d6efd;
+    --success-color: #198754;
+    --danger-color: #dc3545;
+    --warning-color: #ffc107;
+    --info-color: #0dcaf0;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f8f9fa;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+main {
+    flex: 1;
+}
+
+/* Карточки */
+.card {
+    border: none;
+    border-radius: 10px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: transform 0.3s, box-shadow 0.3s;
+}
+
+.card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+.card-header {
+    background: linear-gradient(135deg, var(--primary-color), #0b5ed7);
+    color: white;
+    border-radius: 10px 10px 0 0 !important;
+    font-weight: 500;
+}
+
+/* Уровни иерархии */
+.level-0 { background-color: #28a745 !important; } /* Завод - зеленый */
+.level-1 { background-color: #17a2b8 !important; } /* Розница - голубой */
+.level-2 { background-color: #ffc107 !important; color: #000 !important; } /* ИП - желтый */
+.level-3 { background-color: #dc3545 !important; } /* Другие - красный */
+
+.badge-level {
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    color: white;
+    font-weight: 500;
+    font-size: 0.875rem;
+}
+
+/* Задолженность */
+.debt-positive {
+    color: var(--danger-color);
+    font-weight: bold;
+}
+
+.debt-negative {
+    color: var(--success-color);
+}
+
+.debt-zero {
+    color: var(--info-color);
+}
+
+/* Таблицы */
+.table-hover tbody tr:hover {
+    background-color: rgba(13, 110, 253, 0.05);
+}
+
+/* Кнопки действий */
+.btn-action {
+    padding: 0.25rem 0.5rem;
+    margin: 0 0.25rem;
+    border-radius: 5px;
+    font-size: 0.875rem;
+}
+
+.btn-action-group {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: center;
+}
+
+/* Анимации */
+.fade-in {
+    animation: fadeIn 0.5s ease-in;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Адаптивность */
+@media (max-width: 768px) {
+    .container {
+        padding-left: 15px;
+        padding-right: 15px;
+    }
+
+    h1 {
+        font-size: 1.8rem;
+    }
+}

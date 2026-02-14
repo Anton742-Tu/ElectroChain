@@ -1,5 +1,6 @@
 from django.contrib.auth import authenticate, login, logout
 from django.db.models import Avg, Count, Q, Sum
+from django.shortcuts import render
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters, generics, permissions, status, viewsets
 from rest_framework.decorators import action
@@ -8,7 +9,7 @@ from rest_framework.views import APIView
 
 from .authentication import ActiveEmployeeAuthentication
 from .filters import NetworkNodeFilter
-from .models import Employee, NetworkNode, Product
+from .models import Employee, NetworkNode, Product, models
 from .permissions import (DepartmentPermission, IsActiveEmployee,
                           IsAdminOrReadOnlyForEmployees)
 from .serializers import (EmployeeSerializer, NetworkNodeCreateSerializer,
@@ -286,3 +287,39 @@ class LogoutView(APIView):
 
         logout(request)
         return Response({"message": "Выход выполнен успешно"})
+
+
+def home(request):
+    """Главная страница"""
+    stats = {
+        "factories": NetworkNode.objects.filter(node_type="factory").count(),
+        "retail": NetworkNode.objects.filter(node_type="retail_network").count(),
+        "entrepreneurs": NetworkNode.objects.filter(node_type="individual_entrepreneur").count(),
+        "products": Product.objects.count(),
+        "total_debt": NetworkNode.objects.aggregate(total=models.Sum("debt"))["total"] or 0,
+    }
+
+    return render(request, "network/home.html", {"stats": stats})
+
+
+def network_list(request):
+    """Список звеньев сети"""
+    nodes = NetworkNode.objects.select_related("supplier").prefetch_related("products").all()
+
+    # Фильтрация по стране
+    country = request.GET.get("country")
+    if country:
+        nodes = nodes.filter(country__icontains=country)
+
+    return render(request, "network/network_list.html", {"nodes": nodes, "current_country": country})
+
+
+def product_list(request):
+    """Список продуктов"""
+    products = Product.objects.all()
+    return render(request, "network/product_list.html", {"products": products})
+
+
+def about(request):
+    """О проекте"""
+    return render(request, "network/about.html")
