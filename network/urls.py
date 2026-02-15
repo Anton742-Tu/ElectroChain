@@ -12,20 +12,19 @@ router.register(r"products", ProductViewSet, basename="product")
 router.register(r"employees", EmployeeViewSet, basename="employee")
 
 urlpatterns = [
-    # API маршруты
-    path("api/", include(router.urls)),
-    path("api/auth/login/", LoginView.as_view(), name="login"),
-    path("api/auth/logout/", LogoutView.as_view(), name="logout"),
-    path("api/auth/profile/", views.profile, name="profile"),
-    path("api/auth/me/", CurrentEmployeeView.as_view(), name="current-employee"),
-    path("api/auth/register/", RegisterEmployeeView.as_view(), name="register-employee"),
-    path("api/api-auth/", include("rest_framework.urls")),
+    # API маршруты (с префиксом /api/ из корневого urls.py)
+    path("", include(router.urls)),
+    # Аутентификация
+    path("auth/login/", LoginView.as_view(), name="login"),  # /api/auth/login/
+    path("auth/logout/", LogoutView.as_view(), name="logout"),  # /api/auth/logout/
+    path("auth/profile/", views.profile, name="profile"),  # /api/auth/profile/
+    path("auth/me/", CurrentEmployeeView.as_view(), name="current-employee"),  # /api/auth/me/
+    path("auth/register/", RegisterEmployeeView.as_view(), name="register-employee"),  # /api/auth/register/
+    # DRF browsable API - добавляем уникальный namespace
+    path("api-auth/", include("rest_framework.urls", namespace="rest_framework")),
     # Веб-страницы
     path("", views.home, name="home"),
     path("network/", views.network_list, name="network_list"),
     path("products/", views.product_list, name="product_list"),
     path("about/", views.about, name="about"),
 ]
-
-# Корневой API (если нужно) - можно добавить отдельно
-# path("api-root/", include(router.urls)),  # или оставить только с префиксом
