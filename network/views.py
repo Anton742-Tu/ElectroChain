@@ -8,6 +8,7 @@ from django.urls import reverse
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters, generics, permissions, status, viewsets
 from rest_framework.decorators import action
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -222,9 +223,18 @@ class RegisterEmployeeView(generics.CreateAPIView):
 class LoginView(APIView):
     """Вход в систему для сотрудников"""
 
+    permission_classes = [AllowAny]  # Разрешаем доступ без аутентификации
+    authentication_classes = []  # Отключаем аутентификацию для этого view
+
     def post(self, request):
         username = request.data.get("username")
         password = request.data.get("password")
+
+        # Проверяем наличие учетных данных
+        if not username or not password:
+            return Response(
+                {"error": "Необходимо указать имя пользователя и пароль"}, status=status.HTTP_400_BAD_REQUEST
+            )
 
         user = authenticate(request, username=username, password=password)
 
@@ -254,7 +264,8 @@ class LoginView(APIView):
                             "department": employee.department,
                             "position": employee.position,
                         },
-                    }
+                    },
+                    status=status.HTTP_200_OK,
                 )
 
             except Employee.DoesNotExist:
@@ -270,7 +281,8 @@ class LoginView(APIView):
                                 "email": user.email,
                                 "full_name": user.get_full_name(),
                             },
-                        }
+                        },
+                        status=status.HTTP_200_OK,
                     )
 
                 return Response({"error": "Профиль сотрудника не найден"}, status=status.HTTP_403_FORBIDDEN)
