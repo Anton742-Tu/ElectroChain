@@ -18,8 +18,9 @@ schema_view = get_schema_view(
 
 urlpatterns = [
     path("admin/", admin.site.urls),
-    path("api/", include("network.urls")),  # Все API маршруты будут с префиксом /api/
+    path("api/", include("network.urls")),  # Все API с префиксом /api/
     path("swagger/", schema_view.with_ui("swagger", cache_timeout=0), name="schema-swagger-ui"),
     path("redoc/", schema_view.with_ui("redoc", cache_timeout=0), name="schema-redoc"),
-    path("", include("network.urls")),  # Веб-страницы без префикса api/
+    # Веб-страницы будут обрабатываться в network/urls.py на корневом уровне
+    path("", include("network.urls")),  # Создайте отдельный файл для веб-маршрутов
 ]
