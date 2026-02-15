@@ -1,0 +1,55 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Профиль - ElectroChain{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="display-5">
+                <i class="fas fa-user-circle"></i> Профиль пользователя
+            </h1>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-id-card"></i> Информация</h5>
+                </div>
+                <div class="card-body text-center">
+                    <i class="fas fa-user-circle fa-5x text-primary mb-3"></i>
+                    <h4>{{ user.get_full_name|default:user.username }}</h4>
+                    <p class="text-muted">{{ user.email }}</p>
+
+                    {% if employee %}
+                        <hr>
+                        <p><strong>Отдел:</strong> {{ employee.department }}</p>
+                        <p><strong>Должность:</strong> {{ employee.position }}</p>
+                        <p><strong>Статус:</strong>
+                            {% if employee.is_active %}
+                                <span class="badge bg-success">Активен</span>
+                            {% else %}
+                                <span class="badge bg-danger">Неактивен</span>
+                            {% endif %}
+                        </p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-history"></i> Последние действия</h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">Функция в разработке</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

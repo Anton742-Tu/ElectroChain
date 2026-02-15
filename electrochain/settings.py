@@ -1,3 +1,4 @@
+import sys
 from pathlib import Path
 
 from decouple import Csv, config
@@ -6,12 +7,12 @@ from decouple import Csv, config
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = config("SECRET_KEY", default="django-insecure-default-key-for-development")
+SECRET_KEY = config("SECRET_KEY")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = config("DEBUG", default=True, cast=bool)
+DEBUG = config("DEBUG", default=False, cast=bool)
 
-ALLOWED_HOSTS = config("ALLOWED_HOSTS", default="localhost,127.0.0.1", cast=Csv())
+ALLOWED_HOSTS = config("ALLOWED_HOSTS", cast=Csv())
 
 
 # Application definition
@@ -75,17 +76,32 @@ REST_FRAMEWORK = {
 WSGI_APPLICATION = "electrochain.wsgi.application"
 
 
-# Database
+# Database - PostgreSQL
 DATABASES = {
     "default": {
-        "ENGINE": config("DB_ENGINE", default="django.db.backends.postgres"),
-        "NAME": config("DB_NAME", default=BASE_DIR / "db.postgres"),
-        "USER": config("DB_USER", default=""),
-        "PASSWORD": config("DB_PASSWORD", default=""),
-        "HOST": config("DB_HOST", default=""),
-        "PORT": config("DB_PORT", default=""),
+        "ENGINE": config("DB_ENGINE"),
+        "NAME": config("DB_NAME"),
+        "USER": config("DB_USER"),
+        "PASSWORD": config("DB_PASSWORD"),
+        "HOST": config("DB_HOST"),
+        "PORT": config("DB_PORT"),
+        "OPTIONS": {
+            "client_encoding": "UTF8",
+        },
     }
 }
+
+# Проверка подключения к базе данных
+try:
+    # Тестовое подключение
+    from django.db import connections
+
+    connections["default"].ensure_connection()
+    print("✅ Подключение к PostgreSQL успешно установлено")
+except Exception as e:
+    print(f"❌ Ошибка подключения к PostgreSQL: {e}")
+    print("Проверьте настройки в .env файле")
+    sys.exit(1)
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
@@ -123,10 +139,5 @@ MEDIA_ROOT = BASE_DIR / "media"
 # Default primary key field type
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-# Email settings
-EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
-EMAIL_HOST = config("EMAIL_HOST", default="smtp.gmail.com")
-EMAIL_PORT = config("EMAIL_PORT", default=587, cast=int)
-EMAIL_HOST_USER = config("EMAIL_HOST_USER", default="")
-EMAIL_HOST_PASSWORD = config("EMAIL_HOST_PASSWORD", default="")
-EMAIL_USE_TLS = config("EMAIL_USE_TLS", default=True, cast=bool)
+# Email settings (для разработки)
+EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"

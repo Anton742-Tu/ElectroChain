@@ -1,0 +1,139 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Главная - ElectroChain{% endblock %}
+
+{% block content %}
+<div class="container">
+    <!-- Герой-секция -->
+    <div class="row mb-5">
+        <div class="col-12">
+            <div class="card bg-primary text-white">
+                <div class="card-body text-center py-5">
+                    <h1 class="display-4">Добро пожаловать в ElectroChain!</h1>
+                    <p class="lead">Современная система управления сетью продаж электроники</p>
+                    <hr class="my-4 bg-white">
+                    <p>Управляйте заводами, розничными сетями и индивидуальными предпринимателями</p>
+                    <div class="mt-4">
+                        <a href="{% url 'network_list' %}" class="btn btn-light btn-lg me-2">
+                            <i class="fas fa-project-diagram"></i> Посмотреть сеть
+                        </a>
+                        <a href="{% url 'product_list' %}" class="btn btn-outline-light btn-lg">
+                            <i class="fas fa-laptop"></i> Каталог продуктов
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Статистика -->
+    <div class="row mb-5">
+        <div class="col-12">
+            <h2 class="text-center mb-4">Статистика системы</h2>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h1 class="display-4 text-primary">{{ stats.factories }}</h1>
+                    <p class="card-text">Заводов</p>
+                    <i class="fas fa-industry fa-2x text-primary"></i>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h1 class="display-4 text-success">{{ stats.retail }}</h1>
+                    <p class="card-text">Розничных сетей</p>
+                    <i class="fas fa-store fa-2x text-success"></i>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h1 class="display-4 text-warning">{{ stats.entrepreneurs }}</h1>
+                    <p class="card-text">Индивидуальных предпринимателей</p>
+                    <i class="fas fa-user-tie fa-2x text-warning"></i>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h1 class="display-4 text-info">{{ stats.products }}</h1>
+                    <p class="card-text">Продуктов</p>
+                    <i class="fas fa-microchip fa-2x text-info"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Последние добавленные -->
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-clock"></i> Последние звенья сети</h5>
+                </div>
+                <div class="card-body">
+                    {% if recent_nodes %}
+                        <div class="list-group">
+                            {% for node in recent_nodes %}
+                                <div class="list-group-item">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <strong>{{ node.name }}</strong>
+                                            <br>
+                                            <small class="text-muted">
+                                                {{ node.get_node_type_display }} | {{ node.city }}
+                                            </small>
+                                        </div>
+                                        <span class="badge bg-{% if node.level == 0 %}success{% elif node.level == 1 %}info{% else %}warning{% endif %}">
+                                            Уровень {{ node.level }}
+                                        </span>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="text-muted">Нет добавленных звеньев</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-newspaper"></i> Новые продукты</h5>
+                </div>
+                <div class="card-body">
+                    {% if recent_products %}
+                        <div class="list-group">
+                            {% for product in recent_products %}
+                                <div class="list-group-item">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <strong>{{ product.name }}</strong>
+                                            <br>
+                                            <small class="text-muted">
+                                                {{ product.model }} | {{ product.release_date|date:"Y" }}
+                                            </small>
+                                        </div>
+                                        {% if product.is_new %}
+                                            <span class="badge bg-success">Новый</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="text-muted">Нет добавленных продуктов</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

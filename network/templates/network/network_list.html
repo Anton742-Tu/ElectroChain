@@ -1,0 +1,148 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Сеть поставщиков - ElectroChain{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="display-5">
+                <i class="fas fa-project-diagram"></i> Сеть поставщиков
+            </h1>
+            <p class="lead">Иерархическая структура звеньев сети</p>
+        </div>
+    </div>
+
+    <!-- Фильтры -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-filter"></i> Фильтры и сортировка</h5>
+                </div>
+                <div class="card-body">
+                    <form method="get" class="row g-3">
+                        <div class="col-md-3">
+                            <label for="country" class="form-label">Страна</label>
+                            <input type="text" class="form-control" id="country" name="country"
+                                   value="{{ current_country|default:'' }}" placeholder="Например: Россия">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="type" class="form-label">Тип звена</label>
+                            <select name="type" id="type" class="form-select">
+                                <option value="">Все типы</option>
+                                {% for type_key, type_name in node_types %}
+                                    <option value="{{ type_key }}" {% if current_type == type_key %}selected{% endif %}>
+                                        {{ type_name }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="sort" class="form-label">Сортировка</label>
+                            <select name="sort" id="sort" class="form-select">
+                                <option value="name" {% if current_sort == 'name' %}selected{% endif %}>По названию</option>
+                                <option value="debt" {% if current_sort == 'debt' %}selected{% endif %}>По задолженности</option>
+                                <option value="level" {% if current_sort == 'level' %}selected{% endif %}>По уровню</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">&nbsp;</label>
+                            <button type="submit" class="btn btn-primary d-block w-100">
+                                <i class="fas fa-search"></i> Применить
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Список звеньев -->
+    <div class="row">
+        {% for node in nodes %}
+            <div class="col-md-6 mb-4">
+                <div class="card h-100">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">{{ node.name }}</h5>
+                        <span class="badge level-{{ node.level }}">
+                            Уровень {{ node.level }}
+                        </span>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <table class="table table-sm">
+                                    <tr>
+                                        <th>Тип:</th>
+                                        <td>{{ node.get_node_type_display }}</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Email:</th>
+                                        <td><a href="mailto:{{ node.email }}">{{ node.email }}</a></td>
+                                    </tr>
+                                    <tr>
+                                        <th>Телефон:</th>
+                                        <td>{{ node.phone|default:"—" }}</td>
+                                    </tr>
+                                </table>
+                            </div>
+                            <div class="col-md-6">
+                                <table class="table table-sm">
+                                    <tr>
+                                        <th>Город:</th>
+                                        <td>{{ node.city }}</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Адрес:</th>
+                                        <td>{{ node.full_address }}</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Задолженность:</th>
+                                        <td class="{% if node.debt > 0 %}debt-positive{% elif node.debt < 0 %}debt-negative{% else %}debt-zero{% endif %}">
+                                            {{ node.debt|floatformat:2 }} ₽
+                                        </td>
+                                    </tr>
+                                </table>
+                            </div>
+                        </div>
+
+                        {% if node.supplier %}
+                            <div class="alert alert-secondary mt-3 mb-0">
+                                <small>
+                                    <i class="fas fa-arrow-up"></i> Поставщик:
+                                    <strong>{{ node.supplier.name }}</strong>
+                                    ({{ node.supplier.get_node_type_display }}, {{ node.supplier.city }})
+                                </small>
+                            </div>
+                        {% endif %}
+
+                        {% with products=node.products.all %}
+                            {% if products %}
+                                <div class="mt-3">
+                                    <small class="text-muted">
+                                        <i class="fas fa-box"></i> Продукты:
+                                        {% for product in products|slice:":3" %}
+                                            {{ product.name }}{% if not forloop.last %}, {% endif %}
+                                        {% endfor %}
+                                        {% if products.count > 3 %}
+                                            и еще {{ products.count|add:"-3" }}
+                                        {% endif %}
+                                    </small>
+                                </div>
+                            {% endif %}
+                        {% endwith %}
+                    </div>
+                </div>
+            </div>
+        {% empty %}
+            <div class="col-12">
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i> В системе пока нет звеньев сети.
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

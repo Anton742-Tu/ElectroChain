@@ -1,0 +1,141 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}О проекте - ElectroChain{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="display-5">
+                <i class="fas fa-info-circle"></i> О проекте ElectroChain
+            </h1>
+            <p class="lead">Информация о системе управления сетью продаж электроники</p>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-microchip"></i> О системе</h5>
+                </div>
+                <div class="card-body">
+                    <h4>{{ project_name }} v{{ version }}</h4>
+                    <p class="lead">{{ description }}</p>
+
+                    <h5 class="mt-4">Ключевые возможности:</h5>
+                    <ul class="list-group list-group-flush">
+                        {% for feature in features %}
+                            <li class="list-group-item bg-transparent">
+                                <i class="fas fa-check-circle text-success me-2"></i> {{ feature }}
+                            </li>
+                        {% endfor %}
+                    </ul>
+
+                    <h5 class="mt-4">Технологический стек:</h5>
+                    <div class="row">
+                        {% for tech in tech_stack %}
+                            <div class="col-md-6">
+                                <div class="alert alert-light">
+                                    <i class="fas fa-cog text-primary me-2"></i> {{ tech }}
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-chart-bar"></i> Статистика</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="statsChart" width="400" height="400"></canvas>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-link"></i> Полезные ссылки</h5>
+                </div>
+                <div class="card-body">
+                    <ul class="list-unstyled">
+                        <li class="mb-2">
+                            <a href="/admin/" class="text-decoration-none">
+                                <i class="fas fa-cog"></i> Админ-панель
+                            </a>
+                        </li>
+                        <li class="mb-2">
+                            <a href="/api/" class="text-decoration-none">
+                                <i class="fas fa-code"></i> API документация
+                            </a>
+                        </li>
+                        <li class="mb-2">
+                            <a href="https://github.com/" target="_blank" class="text-decoration-none">
+                                <i class="fab fa-github"></i> GitHub репозиторий
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Скрипт для графика -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const ctx = document.getElementById('statsChart').getContext('2d');
+
+    // Получаем статистику с сервера
+    fetch('/api/network-nodes/suppliers_summary/')
+        .then(response => response.json())
+        .then(data => {
+            const stats = data.statistics;
+
+            new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: ['Заводы', 'Розничные сети', 'ИП'],
+                    datasets: [{
+                        data: [stats.factories, stats.retail_networks, stats.entrepreneurs],
+                        backgroundColor: [
+                            'rgba(40, 167, 69, 0.8)',
+                            'rgba(23, 162, 184, 0.8)',
+                            'rgba(255, 193, 7, 0.8)'
+                        ],
+                        borderColor: [
+                            'rgb(40, 167, 69)',
+                            'rgb(23, 162, 184)',
+                            'rgb(255, 193, 7)'
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                        },
+                        title: {
+                            display: true,
+                            text: 'Распределение по типам'
+                        }
+                    }
+                }
+            });
+        })
+        .catch(error => {
+            console.error('Ошибка загрузки статистики:', error);
+            ctx.font = '16px Arial';
+            ctx.fillStyle = '#666';
+            ctx.fillText('Не удалось загрузить статистику', 50, 200);
+        });
+});
+</script>
+{% endblock %}

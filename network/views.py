@@ -1,6 +1,10 @@
+from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth.decorators import login_required
 from django.db.models import Avg, Count, Q, Sum
+from django.http import HttpResponseRedirect
 from django.shortcuts import render
+from django.urls import reverse
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters, generics, permissions, status, viewsets
 from rest_framework.decorators import action
@@ -9,7 +13,7 @@ from rest_framework.views import APIView
 
 from .authentication import ActiveEmployeeAuthentication
 from .filters import NetworkNodeFilter
-from .models import Employee, NetworkNode, Product, models
+from .models import Employee, NetworkNode, Product
 from .permissions import (DepartmentPermission, IsActiveEmployee,
                           IsAdminOrReadOnlyForEmployees)
 from .serializers import (EmployeeSerializer, NetworkNodeCreateSerializer,
@@ -291,35 +295,137 @@ class LogoutView(APIView):
 
 def home(request):
     """Главная страница"""
+    # Статистика
     stats = {
         "factories": NetworkNode.objects.filter(node_type="factory").count(),
         "retail": NetworkNode.objects.filter(node_type="retail_network").count(),
         "entrepreneurs": NetworkNode.objects.filter(node_type="individual_entrepreneur").count(),
         "products": Product.objects.count(),
-        "total_debt": NetworkNode.objects.aggregate(total=models.Sum("debt"))["total"] or 0,
+        "total_debt": NetworkNode.objects.aggregate(total=Sum("debt"))["total"] or 0,
+        "total_nodes": NetworkNode.objects.count(),
     }
 
-    return render(request, "network/home.html", {"stats": stats})
+    # Последние добавленные
+    recent_nodes = NetworkNode.objects.order_by("-created_at")[:5]
+    recent_products = Product.objects.order_by("-release_date")[:5]
+
+    context = {
+        "stats": stats,
+        "recent_nodes": recent_nodes,
+        "recent_products": recent_products,
+    }
+    return render(request, "network/home.html", context)
 
 
 def network_list(request):
     """Список звеньев сети"""
+    # Получаем все звенья с оптимизацией запросов
     nodes = NetworkNode.objects.select_related("supplier").prefetch_related("products").all()
 
-    # Фильтрация по стране
+    # Фильтрация
     country = request.GET.get("country")
+    node_type = request.GET.get("type")
+
     if country:
         nodes = nodes.filter(country__icontains=country)
+    if node_type:
+        nodes = nodes.filter(node_type=node_type)
 
-    return render(request, "network/network_list.html", {"nodes": nodes, "current_country": country})
+    # Сортировка
+    sort = request.GET.get("sort", "name")
+    if sort == "debt":
+        nodes = nodes.order_by("-debt")
+    elif sort == "level":
+        # Сортируем через Python, так как level - свойство
+        nodes = sorted(nodes, key=lambda x: x.level)
+    else:
+        nodes = nodes.order_by("name")
+
+    context = {
+        "nodes": nodes,
+        "current_country": country,
+        "current_type": node_type,
+        "current_sort": sort,
+        "node_types": NetworkNode.NodeType.choices,
+    }
+    return render(request, "network/network_list.html", context)
 
 
 def product_list(request):
     """Список продуктов"""
     products = Product.objects.all()
-    return render(request, "network/product_list.html", {"products": products})
+
+    # Фильтрация по году
+    year = request.GET.get("year")
+    if year:
+        products = products.filter(release_date__year=year)
+
+    context = {
+        "products": products,
+        "current_year": year,
+        "years": Product.objects.dates("release_date", "year").distinct(),
+    }
+    return render(request, "network/product_list.html", context)
 
 
 def about(request):
     """О проекте"""
-    return render(request, "network/about.html")
+    context = {
+        "project_name": "ElectroChain",
+        "version": "1.0.0",
+        "description": "Система управления сетью продаж электроники с иерархической структурой",
+        "features": [
+            "Иерархическая структура: заводы, розничные сети, ИП",
+            "Управление продуктами и поставщиками",
+            "Отслеживание задолженности",
+            "REST API для интеграции",
+            "Админ-панель для управления",
+        ],
+        "tech_stack": [
+            "Django 6.0",
+            "Django REST Framework",
+            "PostgreSQL",
+            "Bootstrap 5",
+            "Font Awesome",
+        ],
+    }
+    return render(request, "network/about.html", context)
+
+
+def login_view(request):
+    """Страница входа"""
+    if request.method == "POST":
+        username = request.POST.get("username")
+        password = request.POST.get("password")
+        user = authenticate(request, username=username, password=password)
+
+        if user is not None:
+            login(request, user)
+            messages.success(request, f"Добро пожаловать, {user.username}!")
+            return HttpResponseRedirect(reverse("home"))
+        else:
+            messages.error(request, "Неверное имя пользователя или пароль.")
+
+    return render(request, "network/login.html")
+
+
+def logout_view(request):
+    """Выход из системы"""
+    logout(request)
+    messages.info(request, "Вы вышли из системы.")
+    return HttpResponseRedirect(reverse("home"))
+
+
+@login_required
+def profile(request):
+    """Профиль пользователя"""
+    try:
+        employee = request.user.employee_profile
+    except Employee.DoesNotExist:
+        employee = None
+
+    context = {
+        "user": request.user,
+        "employee": employee,
+    }
+    return render(request, "network/profile.html", context)
